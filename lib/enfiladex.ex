@@ -35,48 +35,66 @@ defmodule Enfiladex do
       @after_compile Enfiladex
 
       Module.register_attribute(__MODULE__, :enfiladex_strategy, accumulate: false, persist: true)
+      Module.register_attribute(__MODULE__, :enfiladex_group, accumulate: false, persist: true)
+      Module.put_attribute(__MODULE__, :enfiladex_group, [])
       Module.register_attribute(__MODULE__, :enfiladex_tests, accumulate: true, persist: true)
-
-      @enfiladex_strategy unquote(@enfiladex_strategy)
+      Module.register_attribute(__MODULE__, :enfiladex_setup, accumulate: true, persist: true)
+      Module.register_attribute(__MODULE__, :enfiladex_setup_all, accumulate: true, persist: true)
 
       import ExUnit.Case, only: [test: 1]
       require ExUnit.Case
 
-      import Enfiladex, only: [describe: 2, test: 2, test: 3]
+      # , setup_all: 1, setup_all: 2]
+      import ExUnit.Callbacks, except: [setup: 1, setup: 2, on_exit: 1, on_exit: 2]
+      require ExUnit.Callbacks
+
+      import Enfiladex,
+        # , setup_all: 1, setup_all: 2]
+        only: [describe: 2, test: 2, test: 3, setup: 1, setup: 2, on_exit: 1, on_exit: 2]
     end
   end
 
   defmacro __before_compile__(_env) do
-    quote generated: true, location: :keep do
+    quote bind_quoted: [enfiladex_strategy: @enfiladex_strategy],
+          generated: true,
+          location: :keep do
       @tests Enum.reduce(@enfiladex_tests, %{}, fn %ExUnit.Test{
                                                      name: test,
                                                      tags: %{
                                                        describe: group,
-                                                       enfiladex_strategy: enfiladex_strategy
+                                                       enfiladex_strategy: strategy
                                                      }
                                                    },
                                                    acc ->
                group = if is_binary(group), do: String.to_atom(group), else: group
 
                acc
-               |> Map.put_new(group, %{tests: [], enfiladicis: MapSet.new([])})
+               |> Map.put_new(group, %{tests: [], strategies: MapSet.new([])})
                |> update_in([group, :tests], &(List.wrap(&1) ++ [test]))
-               |> update_in([group, :enfiladicis], &MapSet.put(&1, enfiladex_strategy))
+               |> update_in([group, :strategies], &MapSet.put(&1, strategy))
              end)
 
       def groups do
         Enum.flat_map(@tests, fn
-          {nil, %{tests: tests, enfiladicis: enfiladex_strategy}} ->
+          {nil, %{tests: tests, strategies: strategies}} ->
             []
 
-          {group, %{tests: tests, enfiladicis: enfiladex_strategy}} ->
-            if MapSet.size(enfiladex_strategy) > 1 do
-              raise Enfiladex.ModuleAttributeError,
-                    "`@enfiladex_strategy` attribute must be the same for all tests " <>
-                      "in `group`/`describe`"
-            end
+          {group, %{tests: tests, strategies: strategies}} ->
+            strategies =
+              case MapSet.size(strategies) do
+                0 ->
+                  unquote(enfiladex_strategy)
 
-            [{group, MapSet.to_list(enfiladex_strategy), tests}]
+                1 ->
+                  MapSet.to_list(strategies)
+
+                _ ->
+                  raise Enfiladex.ModuleAttributeError,
+                        "`@enfiladex_strategy` attribute must be the same for all tests " <>
+                          "in `group`/`describe`"
+              end
+
+            [{group, strategies, tests}]
         end)
       end
 
@@ -87,6 +105,49 @@ defmodule Enfiladex do
         end)
       end
 
+      defmacrop local_apply(f, ctx) do
+        Code.string_to_quoted("#{f}()").to_quote
+      end
+
+      # defmacrop local_apply(f, ctx) do
+      #   quote do
+      #     IO.inspect({unquote(f), unquote(ctx)}, label: "GANGBANG")
+      #   end
+      # end
+
+      for %{tests: tests, strategies: strategies} <- [@tests[nil]],
+          test <- tests,
+          {[], setups} <- Enum.group_by(@enfiladex_setup, & &1.group) do
+        %{function: on_entry, on_exit: on_exit} =
+          Enum.reduce(
+            setups,
+            &Map.merge(&1, &2, fn
+              :group, v, v -> v
+              _, v1, v2 -> v1 ++ v2
+            end)
+          )
+
+        defmacrop init_per_testcase_ast(on_entry) do
+          Enum.map(on_entry, fn f ->
+            quote do
+              fn ctx ->
+                case unquote(f)(Map.new(ctx)) do
+                  :ok -> ctx
+                  %{} = map -> Enum.to_list(map)
+                  list when is_list(list) -> list
+                end
+              end
+            end
+          end)
+        end
+
+        def init_per_testcase(unquote(test), context) do
+          Enum.reduce(init_per_testcase_ast(unquote(on_entry)), context, & &1.(&2))
+        end
+
+        def end_per_testcase(unquote(test), _context), do: unquote(on_exit)
+      end
+
       :ok
     end
   end
@@ -94,6 +155,8 @@ defmodule Enfiladex do
   defmacro __after_compile__(_env, _bytecode) do
     quote do
       IO.inspect(__MODULE__.__info__(:functions), label: "AFTER")
+      IO.inspect(@enfiladex_setup, label: "SETUP")
+      IO.inspect(@tests, label: "TESTS")
       :ok
     end
   end
@@ -112,9 +175,64 @@ defmodule Enfiladex do
 
   defmacro describe(message, do: block) do
     quote do
+      @enfiladex_group [unquote(message) | @enfiladex_group]
       ExUnit.Case.describe(unquote(message), unquote(do: block))
-      @enfiladex_strategy unquote(@enfiladex_strategy)
+      @enfiladex_group tl(@enfiladex_group)
     end
+  end
+
+  @spec on_exit(term, (-> term)) :: :ok
+  def on_exit(name_or_ref \\ make_ref(), callback) when is_function(callback, 0) do
+    with :error <- ExUnit.OnExitHandler.add(self(), name_or_ref, callback) do
+      IO.warn(
+        "test process is not running, `on_exit/2` callback will not make any effect in `ExUnit`"
+      )
+    end
+  end
+
+  defmacro setup(block) do
+    {kind, on_exit} =
+      if Keyword.keyword?(block), do: {:block, grab_on_exit(block)}, else: {:function, []}
+
+    quote do
+      ExUnit.Callbacks.setup(unquote(block))
+
+      funs =
+        case unquote(kind) do
+          :function -> unquote(block)
+          :block -> List.first(@ex_unit_setup)
+        end
+
+      Module.put_attribute(__MODULE__, :enfiladex_setup, %{
+        function: List.wrap(funs),
+        on_exit: unquote(Macro.escape(on_exit)),
+        group: @enfiladex_group
+      })
+    end
+  end
+
+  defmacro setup(context, block) do
+    on_exit = grab_on_exit(block)
+
+    quote do
+      ExUnit.Callbacks.setup(unquote(context), unquote(block))
+
+      Module.put_attribute(__MODULE__, :enfiladex_setup, %{
+        function: List.wrap(List.first(@ex_unit_setup)),
+        on_exit: unquote(Macro.escape(on_exit)),
+        group: @enfiladex_group
+      })
+    end
+  end
+
+  defp grab_on_exit(block) do
+    {_block, on_exit} =
+      Macro.postwalk(block, [], fn
+        {:on_exit, _meta, [{:fn, _, [{:->, _, [[], block]}]}]}, acc -> {nil, [block | acc]}
+        other, acc -> {other, acc}
+      end)
+
+    on_exit
   end
 
   @doc """
