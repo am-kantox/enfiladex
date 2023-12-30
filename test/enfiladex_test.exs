@@ -13,7 +13,7 @@ defmodule Enfiladex.Suite do
     IO.inspect(ctx, label: "SETUP MAIN 2")
 
     on_exit(fn ->
-      IO.puts("ON EXIT 2. Process: #{inspect(self())}")
+      IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
     end)
 
     Map.put(ctx, :setup_two, 2)

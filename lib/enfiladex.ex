@@ -199,7 +199,9 @@ defmodule Enfiladex do
 
   defmacro setup(block) do
     {kind, on_exit} =
-      if Keyword.keyword?(block), do: {:block, grab_on_exit(block)}, else: {:function, []}
+      if Keyword.keyword?(block),
+        do: {:block, grab_on_exit(__CALLER__, block)},
+        else: {:function, []}
 
     quote do
       ExUnit.Callbacks.setup(unquote(block))
@@ -219,7 +221,7 @@ defmodule Enfiladex do
   end
 
   defmacro setup(context, block) do
-    on_exit = grab_on_exit(block)
+    on_exit = grab_on_exit(__CALLER__, block)
 
     quote do
       ExUnit.Callbacks.setup(unquote(context), unquote(block))
@@ -232,7 +234,7 @@ defmodule Enfiladex do
     end
   end
 
-  defp grab_on_exit(block) do
+  defp grab_on_exit(caller, block) do
     {_block, on_exit} =
       Macro.postwalk(block, [], fn
         # TODO inject binding as
@@ -240,7 +242,29 @@ defmodule Enfiladex do
         other, acc -> {other, acc}
       end)
 
-    on_exit
+    {result, all_errors_and_warnings} =
+      Code.with_diagnostics(fn ->
+        try do
+          {:ok, Code.compile_quoted(on_exit, caller.file)}
+        rescue
+          err -> {:error, err}
+        end
+      end)
+
+    case result do
+      {:ok, _ast} ->
+        on_exit
+
+      _ ->
+        IO.puts(
+          "Capturing a context from `on_exit/2` callback in not allowed yet in `Enfiladex`, " <>
+            "no teardown callback would have been defined."
+        )
+
+        Enum.each(all_errors_and_warnings, &Code.print_diagnostic/1)
+
+        quote do: fn -> :ok end
+    end
   end
 
   @doc """
