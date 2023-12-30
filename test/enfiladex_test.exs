@@ -1,7 +1,7 @@
-defmodule Enfiladex.Suite do
+defmodule Enfiladex.Test.Suite do
   # defmodule :enfiladex_test do
   use ExUnit.Case
-  use Enfiladex
+  use Enfiladex.Suite
   doctest Enfiladex
 
   defp foo_setup(context), do: IO.inspect(%{context: context}, label: "FOO_SETUP")
@@ -10,6 +10,13 @@ defmodule Enfiladex.Suite do
   test "very first", _ctx do
     :enfiladex.multi_node([], &IO.inspect/1)
   end
+
+  setup_all ctx do
+    IO.inspect(ctx, label: "SETUP ALL")
+    on_exit(fn -> IO.puts("ALL TEARDOWN") end)
+  end
+
+  setup_all :foo_setup
 
   @enfiladex_strategy :parallel
 
