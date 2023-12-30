@@ -4,9 +4,17 @@ defmodule Enfiladex.Suite do
   use Enfiladex
   doctest Enfiladex
 
+  defp foo_setup(context), do: IO.inspect(%{context: context}, label: "FOO_SETUP")
+  defp bar_setup(context), do: IO.inspect(%{context: context}, label: "BAR_SETUP")
+
+  test "very first", _ctx do
+    :enfiladex.multi_node([], &IO.inspect/1)
+  end
+
   @enfiladex_strategy :parallel
+
   setup do
-    %{setup: 1}
+    %{setup_first: :ok}
   end
 
   setup ctx do
@@ -16,10 +24,10 @@ defmodule Enfiladex.Suite do
       IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
     end)
 
-    Map.put(ctx, :setup_two, 2)
+    Map.put(ctx, :setup_second, :ok)
   end
 
-  defp foo_setup(context), do: IO.inspect(%{context: context}, label: "FOO_SETUP")
+  setup [:foo_setup, :bar_setup]
 
   describe "failing tests" do
     setup :foo_setup
@@ -33,6 +41,14 @@ defmodule Enfiladex.Suite do
 
     test "greets the world", _ctx do
       assert Enfiladex.hello() != :world
+    end
+  end
+
+  describe "succeedeing tests" do
+    setup :foo_setup
+
+    test "greets the world", _ctx do
+      assert Enfiladex.hello() == :world
     end
   end
 
