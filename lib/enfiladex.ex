@@ -145,8 +145,14 @@ defmodule Enfiladex do
           Enum.reduce(init_per_testcase_ast(unquote(on_entry)), context, & &1.(&2))
         end
 
-        def end_per_testcase(unquote(test), _context), do: unquote(on_exit)
+        def end_per_testcase(unquote(test), context) do
+          unquote(on_exit)
+          context
+        end
       end
+
+      def init_per_testcase(_, context), do: context
+      def end_per_testcase(_, context), do: context
 
       :ok
     end
@@ -184,9 +190,10 @@ defmodule Enfiladex do
   @spec on_exit(term, (-> term)) :: :ok
   def on_exit(name_or_ref \\ make_ref(), callback) when is_function(callback, 0) do
     with :error <- ExUnit.OnExitHandler.add(self(), name_or_ref, callback) do
-      IO.warn(
-        "test process is not running, `on_exit/2` callback will not make any effect in `ExUnit`"
-      )
+      # IO.warn(
+      #   "test process is not running, `on_exit/2` callback will not make any effect in `ExUnit`"
+      # )
+      :ok
     end
   end
 
@@ -228,6 +235,7 @@ defmodule Enfiladex do
   defp grab_on_exit(block) do
     {_block, on_exit} =
       Macro.postwalk(block, [], fn
+        # TODO inject binding as
         {:on_exit, _meta, [{:fn, _, [{:->, _, [[], block]}]}]}, acc -> {nil, [block | acc]}
         other, acc -> {other, acc}
       end)
