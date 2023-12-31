@@ -1,30 +1,52 @@
 -module(enfiladex).
-%% -behaviour(ct_suite).
-%% -export([all/0, groups/0]).
--export([basic/1, args/1, named/1, restart_node/1, multi_node/2, remote_node/1, docker/1, build_release/1, build_image/1]).
+
+-export([basic_peer/3]).
 
 -include_lib("common_test/include/ct.hrl").
 
-%% Peer node names generated for Common Test purposes:
-% -define(CT_PEER_NAME(TestCase), test_server:peer_name(?MODULE_STRING, TestCase)).
-% -define(CT_PEER_NAME(), ?CT_PEER_NAME(?FUNCTION_NAME)).
+add_code_paths(Node) ->
+    rpc:block_call(Node, code, add_paths, [code:get_path()]).
 
-% %% Start nodes with command line arguments or extended options
-% -define(CT_PEER(Opts), test_server:start_peer(Opts, ?MODULE, ?FUNCTION_NAME)).
-% %% Start a peer with name prefix of current ?MODULE and ?FUNCTION_NAME
-% -define(CT_PEER(), ?CT_PEER([])).
-% %% Start a compatibility node - for OTP test suites only
-% -define(CT_PEER_REL(Opts, Release, PrivDir), test_server:start_peer(Opts, ?MODULE, ?FUNCTION_NAME, Release, PrivDir)).
+transfer_configuration(Node) ->
+    do_transfer_configuration(Node, application:loaded_applications()).
+transfer_configuration(Node, App) ->
+    do_transfer_configuration(Node, [{App, nil, nil} | application:loaded_applications()]).
 
-% groups() ->
-%     [{quick, [parallel], [basic, args, named, restart_node, multi_node]}].
+do_transfer_configuration(Node, Apps) ->
+    [rpc:block_call(Node, application, set_env, [AppName, Key, Val]) ||
+        {AppName, _, _}  <- Apps,
+        {Key, Val} <- application:get_all_env(AppName)].
 
-% all() ->
-%     [{group, quick}].
+ensure_applications_started(Node) ->
+    ensure_applications_started(Node, application:loaded_applications()).
 
-basic(Config) when is_list(Config) ->
-    {ok, Peer, _Node} = ?CT_PEER(),
-    peer:stop(Peer).
+ensure_applications_started(Node, Apps) ->
+    rpc:block_call(Node, application, ensure_all_started, [mix]),
+    rpc:block_call(Node, 'Elixir.Mix', env, ['Elixir.Mix':env()]),
+
+    [rpc:block_call(Node, application, ensure_all_started, [AppName]) || {AppName, _, _} <- Apps].
+
+basic_peer(Fun, Callback, Config) when is_function(Fun), is_function(Callback, 1), is_list(Config) ->
+    {ok, Peer, Node} = ?CT_PEER(),
+    add_code_paths(Node),
+    case proplists:get_value(transfer_config, Config, false) of
+        false -> ok;
+        true -> transfer_configuration(Node);
+        App -> transfer_configuration(Node, App)
+    end,
+    case proplists:get_value(start_applications, Config, false) of
+        false -> ok;
+        true -> ensure_applications_started(Node);
+        Apps when is_list(Apps) -> ensure_applications_started(Node, Apps)
+    end,
+    Result = case Fun of
+        Fun0 when is_function(Fun0, 0) -> erpc:call(Node, Fun);
+        Fun1 when is_function(Fun1, 1) -> Fun(Node);
+        Fun2 when is_function(Fun2, 2) -> Fun(Peer, Node)
+    end,
+    Callback(Result),
+    peer:stop(Peer),
+    Result.
 
 args(Config) when is_list(Config) ->
     %% specify additional arguments to the new node
