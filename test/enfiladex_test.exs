@@ -8,7 +8,7 @@ defmodule Enfiladex.Test.Suite do
   defp bar_setup(context), do: IO.inspect(%{context: context}, label: "BAR_SETUP")
 
   test "very first", _ctx do
-    Enfiladex.multi_peer(fn -> Application.get_all_env(:enfiladex) end, &IO.inspect/1,
+    Enfiladex.multi_peer({Application, :get_all_env, [:enfiladex]}, &IO.inspect/1,
       transfer_config: true
     )
   end
@@ -63,7 +63,7 @@ defmodule Enfiladex.Test.Suite do
   end
 
   test "greets the world", _ctx do
-    Enfiladex.multi_peer(fn -> Application.get_all_env(:enfiladex) end, &IO.inspect/1,
+    Enfiladex.peer({Application, :get_all_env, [:enfiladex]}, &IO.inspect/1,
       transfer_config: true
     )
   end

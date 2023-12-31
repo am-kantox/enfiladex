@@ -40,8 +40,9 @@ maybe_start_applicatoins(Node, Config) ->
         Apps when is_list(Apps) -> ensure_applications_started(Node, Apps)
     end.
 
-apply_fun(Peer, Node, Fun) when is_function(Fun, 0) orelse is_function(Fun, 1) orelse is_function(Fun, 2) -> 
+apply_fun(Peer, Node, Fun) when is_tuple(Fun) orelse is_function(Fun, 0) orelse is_function(Fun, 1) orelse is_function(Fun, 2) -> 
     case Fun of
+        {Mod, ModFun, Args} -> rpc:call(Node, Mod, ModFun, Args);
         Fun0 when is_function(Fun0, 0) -> erpc:call(Node, Fun0);
         Fun1 when is_function(Fun1, 1) -> Fun1(Node);
         Fun2 when is_function(Fun2, 2) -> Fun2(Peer, Node)
@@ -71,18 +72,18 @@ get_result(Peer, Node, Fun, Callback) ->
     Result.
 
 %% Interface
-anonymous_peer(Fun, Callback, Config) when is_function(Fun), is_function(Callback, 1), is_list(Config) ->
+anonymous_peer(Fun, Callback, Config) when (is_function(Fun) orelse is_tuple(Fun)), is_function(Callback, 1), is_list(Config) ->
     {ok, Peer, Node} = peer_with_args(Config),
     initialize_node(Node, Config),
     Result = get_result(Peer, Node, Fun, Callback),
     peer:stop(Peer),
     Result.
 
-named_peer(Name, Fun, Callback, Config) when is_function(Fun), is_function(Callback, 1), is_list(Config) ->
+named_peer(Name, Fun, Callback, Config) when (is_function(Fun) orelse is_tuple(Fun)), is_function(Callback, 1), is_list(Config) ->
     Config2 = [{peer_node_arguments, #{name => ?CT_PEER_NAME(Name)}} | Config],
     anonymous_peer(Fun, Callback, Config2).
 
-multi_peer(Fun, Callback, Config) when is_function(Fun), is_function(Callback), is_list(Config) ->
+multi_peer(Fun, Callback, Config) when (is_function(Fun) orelse is_tuple(Fun)), is_function(Callback), is_list(Config) ->
     Count = proplists:get_value(nodes_count, Config, 3),
     Peers = [?CT_PEER(#{wait_boot => {self(), enfiladex}}) || _ <- lists:seq(1, Count)],
     %% wait for all nodes to complete boot process, get their names:
