@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Enfiladex do
   def run(_args) do
     Mix.Task.run(:loadpaths)
 
-    path = "./test"
+    path = "test"
 
     Application.put_env(:common_test, :auto_compile, false)
     ExUnit.start()
@@ -14,27 +14,35 @@ defmodule Mix.Tasks.Enfiladex do
     modules =
       for file <- Path.wildcard(match),
           String.contains?(File.read!(file), "use Enfiladex.Suite"),
-          {module, _} <- Code.require_file(file),
-          do: module
+          {module, code} <- Code.compile_file(file),
+          :ok <- [File.write!(Path.join(Path.dirname(file), to_string(module) <> ".beam"), code)],
+          do: Module.concat([module, "Suite"])
+
+    IO.inspect(modules, label: "Suites")
 
     IO.inspect(
       # :ct.run_testspec([
       #   {:suites, to_charlist(path), modules},
-      #   logdir: ~c"./results",
+      #   include: to_charlist(path),
+      #   logdir: ~c"./ct_logs",
+      #   auto_compile: false,
+      #   verbosity: 100,
       #   abort_if_missing_suites: true,
       #   ct_hooks: [Enfiladex.Hooks]
       # ])
 
-      :ct.run_test(
-        dir: to_charlist(path),
-        include: to_charlist(path),
-        suite: Elixir.Enfiladex.Test.Suite.Suite,
-        logdir: ~c"./ct_logs",
-        auto_compile: false,
-        verbosity: 100,
-        abort_if_missing_suites: true,
-        ct_hooks: [Enfiladex.Hooks]
-      )
+      Enum.map(modules, fn module ->
+        :ct.run_test(
+          dir: to_charlist(path),
+          include: to_charlist(path),
+          suite: module,
+          logdir: ~c"./ct_logs",
+          auto_compile: false,
+          verbosity: 100,
+          abort_if_missing_suites: true,
+          ct_hooks: [Enfiladex.Hooks]
+        )
+      end)
     )
   end
 end
