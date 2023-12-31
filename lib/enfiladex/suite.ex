@@ -195,9 +195,6 @@ defmodule Enfiladex.Suite do
 
   defmacro __after_compile__(_env, _bytecode) do
     quote do
-      IO.inspect(__MODULE__.__info__(:functions), label: "AFTER")
-      IO.inspect(@enfiladex_setup, label: "SETUP")
-      IO.inspect(@tests, label: "TESTS")
       :ok
     end
   end
@@ -328,7 +325,7 @@ defmodule Enfiladex.Suite do
     {result, all_errors_and_warnings} =
       Code.with_diagnostics(fn ->
         try do
-          {:ok, Code.compile_quoted(on_exit, caller.file)}
+          {:ok, Code.compile_quoted({:fn, [], [{:->, [], [[], on_exit]}]}, caller.file)}
         rescue
           err -> {:error, err}
         end
@@ -339,6 +336,11 @@ defmodule Enfiladex.Suite do
         on_exit
 
       _ ->
+        # with {:ok, pid} <- Module.ParallelChecker.start_link(),
+        #      do: :erlang.put(:elixir_checker_info, {pid, nil})
+
+        # :erlang.erase(:elixir_code_diagnostics)
+
         IO.puts(
           "Capturing a context from `on_exit/2` callback in not allowed yet in `Enfiladex`, " <>
             "no teardown callback would have been defined."

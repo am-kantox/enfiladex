@@ -8,7 +8,9 @@ defmodule Enfiladex.Test.Suite do
   defp bar_setup(context), do: IO.inspect(%{context: context}, label: "BAR_SETUP")
 
   test "very first", _ctx do
-    :enfiladex.multi_node([], &IO.inspect/1)
+    Enfiladex.multi_peer(fn -> Application.get_all_env(:enfiladex) end, &IO.inspect/1,
+      transfer_config: true
+    )
   end
 
   setup_all ctx do
@@ -28,7 +30,8 @@ defmodule Enfiladex.Test.Suite do
     IO.inspect(ctx, label: "SETUP MAIN 2")
 
     on_exit(fn ->
-      IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
+      nil
+      # IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
     end)
 
     Map.put(ctx, :setup_second, :ok)
@@ -60,6 +63,8 @@ defmodule Enfiladex.Test.Suite do
   end
 
   test "greets the world", _ctx do
-    :enfiladex.multi_node([], &IO.inspect/1)
+    Enfiladex.multi_peer(fn -> Application.get_all_env(:enfiladex) end, &IO.inspect/1,
+      transfer_config: true
+    )
   end
 end
