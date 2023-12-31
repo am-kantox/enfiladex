@@ -59,7 +59,7 @@ defmodule Enfiladex.MixProject do
 
   defp description do
     """
-    Erlang common test convenient wrapper.
+    Erlang `common_test` and multinode test with `:peer` convenient wrapper.
     """
   end
 

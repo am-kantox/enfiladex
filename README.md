@@ -1,21 +1,26 @@
 # Enfiladex
 
-**TODO: Add description**
+**Wrapper for executing `ExUnit` as `common_test` **
 
 ## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `enfiladex` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:enfiladex, "~> 0.1.0"}
+    {:enfiladex, "~> 0.1"}
   ]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/enfiladex>.
+## Usage
+
+Add `use Enfiladex` to your test to convert it to common test suite. 
+
+## Known issues
+
+- `on_exit/2` callbacks with captures makes test to fail compiling with `use Enfiladex` (`Code.with_diagnostics/2` issue),
+- `Enfiladex.{peer/3, multi_peer_/3}` fail from tests with an anonymous function,
+- Compiled `beam` files are not yet removed. 
+
+[Documentation](https://hexdocs.pm/enfiladex).
 
