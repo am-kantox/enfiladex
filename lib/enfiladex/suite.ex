@@ -67,6 +67,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(_env) do
     quote bind_quoted: [enfiladex_strategy: @default_enfiladex_strategy],
           generated: true,
@@ -120,6 +121,7 @@ defmodule Enfiladex.Suite do
         Enum.map(on_entry, fn f ->
           quote do
             fn ctx ->
+              # credo:disable-for-next-line Credo.Check.Refactor.Nesting
               case unquote(f)(Map.new(ctx)) do
                 :ok -> ctx
                 %{} = map -> Enum.to_list(map)
@@ -151,8 +153,10 @@ defmodule Enfiladex.Suite do
               {groups, setup} -> {Enum.map(groups, &Enfiladex.Suite.fix_atom_name/1), setup}
             end
 
+          merger = fn _k, v1, v2 -> v2 ++ v1 end
+
           Enum.reduce(groups, acc, fn group, acc ->
-            Map.update(acc, group, setup, &Map.merge(&1, setup, fn _k, v1, v2 -> v2 ++ v1 end))
+            Map.update(acc, group, setup, &Map.merge(&1, setup, merger))
           end)
         end)
         |> Map.merge(@tests, fn _k, %{} = v1, %{} = v2 -> Map.merge(v1, v2) end)
@@ -317,7 +321,7 @@ defmodule Enfiladex.Suite do
   defp grab_on_exit(caller, block) do
     {_block, on_exit} =
       Macro.postwalk(block, [], fn
-        # TODO inject binding as
+        # AM inject binding as
         {:on_exit, _meta, [{:fn, _, [{:->, _, [[], block]}]}]}, acc -> {nil, [block | acc]}
         other, acc -> {other, acc}
       end)

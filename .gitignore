@@ -26,7 +26,7 @@ enfiladex-*.tar
 /tmp/
 
 # Dialyzer’s PLT
-/.dialyzer/*.plt*
+/.dialyzer/plts/*.plt*
 
 # Elixir LS
 /.elixir_ls/

@@ -35,6 +35,7 @@ defmodule Enfiladex do
 
   """
   def hello do
+    # credo:disable-for-next-line Credo.Check.Warning.IoInspect
     IO.inspect(:world, label: "Hello")
   end
 end

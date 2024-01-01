@@ -20,7 +20,7 @@ defmodule Enfiladex.MixProject do
       docs: docs(),
       dialyzer: [
         plt_file: {:no_warn, ".dialyzer/plts/dialyzer.plt"},
-        plt_add_apps: [:mix],
+        plt_add_apps: [:mix, :common_test],
         ignore_warnings: ".dialyzer/ignore.exs"
       ]
     ]

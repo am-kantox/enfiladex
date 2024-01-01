@@ -1,4 +1,6 @@
 defmodule Enfiladex.Hooks do
+  @moduledoc false
+
   def init(_id, _opts) do
     {:ok, nil}
   end
@@ -16,7 +18,7 @@ defmodule Enfiladex.Hooks do
   def on_tc_fail(_suite, _name, {%ExUnit.AssertionError{} = error, _}, state) do
     write(Exception.message(error))
 
-    :ct.log(:error, 100, Exception.message(error))
+    :ct.log(:error, 100, to_charlist(Exception.message(error)))
 
     state
   end
