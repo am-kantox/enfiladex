@@ -14,7 +14,7 @@ defmodule Enfiladex do
     normally it’s the main application configuration  
   - **`start_applications`** (default: `true`) — `boolean() | atom()` specifying whether
     the application(s) should have been starter on the spawned node(s)
-  - **`nodes_count`** (default: `3`) — for `multi_peer/3`, the number of nodes to start 
+  - **`nodes`** (default: `3`) — for `multi_peer/3`, the number of nodes to start 
   """
 
   @type callee_return_value :: any()
@@ -59,11 +59,21 @@ defmodule Enfiladex do
     :enfiladex.multi_peer(fun, callback, config)
   end
 
+  @spec fix_callback_config(callback() | keyword(), keyword()) :: {callback(), keyword()}
   defp fix_callback_config(callback, config) do
     case {callback, config} do
       {[], config} -> {fn result -> result end, config}
       {config, []} when is_list(config) -> {fn result -> result end, config}
-      {callback, config} when is_function(callback, 1) -> {callback, config}
+      {callback, config} when is_function(callback) -> {callback, config}
     end
+  end
+
+  @doc false
+  def test(pids, payload) when is_list(pids) do
+    for pid <- pids, do: test(pid, payload)
+  end
+
+  def test(pid, payload) when is_pid(pid) do
+    send(pid, {node(), self(), payload})
   end
 end

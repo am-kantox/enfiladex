@@ -109,15 +109,10 @@ named_peer(Name, Fun, Callback, Config)
 
 multi_peer(Fun, Callback, Config)
     when is_function(Fun) orelse is_tuple(Fun), is_function(Callback), is_list(Config) ->
-    Count = proplists:get_value(nodes_count, Config, 3),
+    Count = proplists:get_value(nodes, Config, 3),
     Peers = [?CT_PEER(#{wait_boot => {self(), enfiladex}}) || _ <- lists:seq(1, Count)],
     %% wait for all nodes to complete boot process, get their names:
-    Nodes =
-        [receive
-             {enfiladex, {started, Node, Peer}} ->
-                 {Peer, Node}
-         end
-         || {ok, Peer, _Node} <- Peers],
+    Nodes = [receive {enfiladex, {started, Node, Peer}} -> {Peer, Node} end || {ok, Peer} <- Peers],
     [initialize_node(Node, Config) || {_Peer, Node} <- Nodes],
     Result = [{Peer, Node, get_result(Peer, Node, Fun, Callback)} || {Peer, Node} <- Nodes],
     [peer:stop(Peer) || {ok, Peer, _Node} <- Peers],

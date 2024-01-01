@@ -1,6 +1,19 @@
 defmodule Enfiladex.Suite do
+  use_enfiladex_suite = """
+
+  > ### `use Enfiladex.Suite` {: .info}
+  >
+  > When you `use Enfiladex.Suite`, the tests in the case become available to use with `common_test`:
+  >
+  > - calls to `setup/2` and `setup_all/2` are also injected as `init_per_***/2` and `end_per_***/2`
+  > - `groups/0` and `all/0` are injectd based on your `describe/2` and `test/2` calls 
+
+  """
+
   @moduledoc """
-  `Enfiladex` is the drop-in `Common Test` wrapper for _Elixir_.
+  `use Enfiladex` is the drop-in `Common Test` wrapper for _ExUnit_.
+
+  #{use_enfiladex_suite}
 
   **`@enfiladex_strategy`** attribute can be set before each `describe/2` call to one of the following values:
 
@@ -32,6 +45,7 @@ defmodule Enfiladex.Suite do
 
   @normalize_group_names Application.compile_env(:enfiladex, :normalize_group_names, false)
 
+  @doc false
   defmacro __using__(_opts \\ []) do
     quote generated: true, location: :keep do
       @before_compile Enfiladex.Suite
@@ -67,6 +81,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(_env) do
     quote bind_quoted: [enfiladex_strategy: @default_enfiladex_strategy],
@@ -197,12 +212,14 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro __after_compile__(_env, _bytecode) do
     quote do
       :ok
     end
   end
 
+  @doc false
   defmacro test(message, var \\ quote(do: _), contents) do
     quote do
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
@@ -215,6 +232,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro describe(message, do: block) do
     quote do
       @enfiladex_group [Enfiladex.Suite.fix_atom_name(unquote(message)) | @enfiladex_group]
@@ -233,6 +251,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   @spec on_exit(term, (-> term)) :: :ok
   def on_exit(name_or_ref \\ make_ref(), callback) when is_function(callback, 0) do
     with :error <- ExUnit.OnExitHandler.add(self(), name_or_ref, callback) do
@@ -244,6 +263,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro setup(block) do
     {kind, on_exit} =
       if Keyword.keyword?(block),
@@ -267,6 +287,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro setup(context, block) do
     on_exit = grab_on_exit(__CALLER__, block)
 
@@ -281,6 +302,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro setup_all(block) do
     {kind, on_exit} =
       if Keyword.keyword?(block),
@@ -304,6 +326,7 @@ defmodule Enfiladex.Suite do
     end
   end
 
+  @doc false
   defmacro setup_all(context, block) do
     on_exit = grab_on_exit(__CALLER__, block)
 
@@ -371,18 +394,5 @@ defmodule Enfiladex.Suite do
     end
   else
     def fix_atom_name(group) when is_binary(group), do: String.to_atom(group)
-  end
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Enfiladex.hello()
-      :world
-
-  """
-  def hello do
-    :world
   end
 end

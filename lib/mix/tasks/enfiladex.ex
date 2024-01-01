@@ -5,47 +5,56 @@ defmodule Mix.Tasks.Enfiladex do
 
   use Mix.Task
 
-  def run(_args) do
-    Mix.Task.run(:loadpaths)
-
-    path = "test"
-
-    Application.put_env(:common_test, :auto_compile, false)
+  @doc false
+  def compile(path \\ "test") do
     ExUnit.start()
 
     match = Path.join([path, "**", "*_test.exs"])
 
-    modules =
-      for file <- Path.wildcard(match),
-          String.contains?(File.read!(file), "use Enfiladex.Suite"),
-          {module, code} <- Code.compile_file(file),
-          :ok <- [File.write!(Path.join(Path.dirname(file), to_string(module) <> ".beam"), code)],
-          do: Module.concat([module, "Suite"])
+    for file <- Path.wildcard(match),
+        String.contains?(File.read!(file), "use Enfiladex.Suite"),
+        {module, code} <- Code.compile_file(file) do
+      beam = Path.join(Path.dirname(file), to_string(module) <> ".beam")
+      :ok = File.write!(Path.join(Path.dirname(file), to_string(module) <> ".beam"), code)
+      %{module: module, fake: Module.concat([module, "Suite"]), beam: beam}
+    end
+  end
 
-    # credo:disable-for-next-line Credo.Check.Warning.IoInspect
-    IO.inspect(
-      # :ct.run_testspec([
-      #   {:suites, to_charlist(path), modules},
-      #   include: to_charlist(path),
-      #   logdir: ~c"./ct_logs",
-      #   auto_compile: false,
-      #   verbosity: 100,
-      #   abort_if_missing_suites: true,
-      #   ct_hooks: [Enfiladex.Hooks]
-      # ])
+  def run(_args) do
+    Mix.Task.run(:loadpaths)
+    Application.put_env(:common_test, :auto_compile, false)
 
-      Enum.map(modules, fn module ->
-        :ct.run_test(
-          dir: to_charlist(path),
-          include: to_charlist(path),
-          suite: module,
-          logdir: ~c"./ct_logs",
-          auto_compile: false,
-          verbosity: 100,
-          abort_if_missing_suites: true,
-          ct_hooks: [Enfiladex.Hooks]
-        )
-      end)
-    )
+    path = "test"
+    modules = compile(path)
+
+    try do
+      # credo:disable-for-next-line Credo.Check.Warning.IoInspect
+      IO.inspect(
+        # :ct.run_testspec([
+        #   {:suites, to_charlist(path), modules},
+        #   include: to_charlist(path),
+        #   logdir: ~c"./ct_logs",
+        #   auto_compile: false,
+        #   verbosity: 100,
+        #   abort_if_missing_suites: true,
+        #   ct_hooks: [Enfiladex.Hooks]
+        # ])
+
+        Enum.map(modules, fn %{fake: module} ->
+          :ct.run_test(
+            dir: to_charlist(path),
+            include: to_charlist(path),
+            suite: module,
+            logdir: ~c"./ct_logs",
+            auto_compile: false,
+            verbosity: 100,
+            abort_if_missing_suites: true,
+            ct_hooks: [Enfiladex.Hooks]
+          )
+        end)
+      )
+    after
+      Enum.each(modules, fn %{beam: file} -> File.rm(file) end)
+    end
   end
 end

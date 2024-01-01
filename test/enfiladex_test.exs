@@ -4,67 +4,78 @@ defmodule Enfiladex.Test.Suite do
   use Enfiladex.Suite
   doctest Enfiladex
 
-  defp foo_setup(context), do: IO.inspect(%{context: context}, label: "FOO_SETUP")
-  defp bar_setup(context), do: IO.inspect(%{context: context}, label: "BAR_SETUP")
-
-  test "very first", _ctx do
-    Enfiladex.multi_peer({Application, :get_all_env, [:enfiladex]}, &IO.inspect/1,
-      transfer_config: true
-    )
+  setup do
+    %{setup_first: [self()]}
   end
 
-  setup_all ctx do
-    IO.inspect(ctx, label: "SETUP ALL")
+  defp foo_setup(context), do: Map.update(context, :foo_setup, [self()], &[self() | &1])
+  defp bar_setup(context), do: Map.update(context, :bar_setup, [self()], &[self() | &1])
+
+  test "very first", ctx do
+    count = 3
+    Enfiladex.multi_peer({Enfiladex, :test, [self(), ctx]}, nodes: count)
+
+    for _ <- 1..count do
+      assert_receive {node, pid, _ctx}
+      assert is_pid(pid)
+
+      assert [node, Node.self()]
+             |> Enum.map(&to_string/1)
+             |> Enum.map(&String.split(&1, "@"))
+             |> Enum.map(&List.last/1)
+             |> Enum.reduce(&Kernel.==/2)
+    end
+  end
+
+  setup_all context do
     on_exit(fn -> IO.puts("ALL TEARDOWN") end)
+
+    Map.update(context, :setup_all, [self()], &[self() | &1])
   end
 
   setup_all :foo_setup
 
   @enfiladex_strategy :parallel
 
-  setup do
-    %{setup_first: :ok}
-  end
-
-  setup ctx do
-    IO.inspect(ctx, label: "SETUP MAIN 2")
-
+  setup context do
     on_exit(fn ->
       nil
       # IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
     end)
 
-    Map.put(ctx, :setup_second, :ok)
+    Map.update(context, :setup, [self()], &[self() | &1])
   end
 
   setup [:foo_setup, :bar_setup]
 
-  describe "failing tests" do
-    setup :foo_setup
+  # describe "failing tests" do
+  #   setup :foo_setup
 
-    setup do
-      IO.inspect("SETUP FT")
-      [setup: 2]
-    end
+  #   test "this will be a test in future"
 
-    test "this will be a test in future"
-
-    test "greets the world", _ctx do
-      assert Enfiladex.hello() != :world
-    end
-  end
+  #   test "greets the world", _ctx do
+  #     assert 42 == :ok
+  #   end
+  # end
 
   describe "succeedeing tests" do
     setup :foo_setup
 
     test "greets the world", _ctx do
-      assert Enfiladex.hello() == :world
+      assert 42 != :ok
     end
   end
 
-  test "greets the world", _ctx do
-    Enfiladex.peer({Application, :get_all_env, [:enfiladex]}, &IO.inspect/1,
-      transfer_config: true
-    )
+  test "greets the world", ctx do
+    Enfiladex.peer({Enfiladex, :test, [self(), ctx]})
+
+    assert_receive {node, pid, _ctx}
+    assert is_pid(pid)
+
+    assert [node, Node.self()]
+           |> Enum.map(&to_string/1)
+           |> Enum.map(&String.split(&1, "@"))
+           |> Enum.map(&List.last/1)
+           |> Enum.reduce(&Kernel.==/2)
   end
 end
