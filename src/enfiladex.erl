@@ -29,7 +29,7 @@ ensure_applications_started(Node, Apps) ->
      || {AppName, _, _} <- Apps].
 
 maybe_transfer_config(Node, Config) ->
-    case proplists:get_value(transfer_config, Config, false) of
+    case proplists:get_value(transfer_config, Config, true) of
         false ->
             ok;
         true ->
@@ -38,8 +38,8 @@ maybe_transfer_config(Node, Config) ->
             transfer_configuration(Node, App)
     end.
 
-maybe_start_applicatoins(Node, Config) ->
-    case proplists:get_value(start_applications, Config, false) of
+maybe_start_applications(Node, Config) ->
+    case proplists:get_value(start_applications, Config, true) of
         false ->
             ok;
         true ->
@@ -79,7 +79,7 @@ peer_with_args(Config) ->
 initialize_node(Node, Config) ->
     add_code_paths(Node),
     maybe_transfer_config(Node, Config),
-    maybe_start_applicatoins(Node, Config).
+    maybe_start_applications(Node, Config).
 
 get_result(Peer, Node, Fun, Callback) ->
     Result = apply_fun(Peer, Node, Fun),
