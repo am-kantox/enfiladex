@@ -2,13 +2,15 @@ defmodule Mix.Tasks.Enfiladex do
   @moduledoc """
   Mix task to run `commot_test` with `ExUnit` test files.
   """
+  @shortdoc "Runs `common_test` for `ExUnit` tests"
+
+  @requirements ["compile", "loadpaths", "app.config"]
+  @preferred_cli_env :test
 
   use Mix.Task
 
   @doc false
   def compile(path \\ "test") do
-    ExUnit.start()
-
     match = Path.join([path, "**", "*_test.exs"])
 
     for file <- Path.wildcard(match),
@@ -21,10 +23,14 @@ defmodule Mix.Tasks.Enfiladex do
   end
 
   def run(_args) do
-    Mix.Task.run(:loadpaths)
+    {_result, 0} = System.cmd("epmd", ["-daemon"], env: [])
+    {:ok, _pid} = Node.start(:enfiladex, :shortnames, 15_000)
+    ExUnit.start(autorun: false, assert_receive_timeout: 1_000)
+
     Application.put_env(:common_test, :auto_compile, false)
 
     path = "test"
+
     modules = compile(path)
 
     try do
@@ -54,6 +60,7 @@ defmodule Mix.Tasks.Enfiladex do
         end)
       )
     after
+      Node.stop()
       Enum.each(modules, fn %{beam: file} -> File.rm(file) end)
     end
   end
