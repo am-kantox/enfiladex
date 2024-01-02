@@ -15,6 +15,11 @@ defmodule Enfiladex do
   - **`start_applications`** (default: `true`) — `boolean() | atom()` specifying whether
     the application(s) should have been starter on the spawned node(s)
   - **`nodes`** (default: `3`) — for `multi_peer/3`, the number of nodes to start 
+
+  ---
+
+  To use functions from this module with `ExUnit` tests, one needs a named node.
+  Either run `mix test` in a named environment, or use `mix enfiladex.ex_unit` task.
   """
 
   @type callee_return_value :: any()
