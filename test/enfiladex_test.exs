@@ -28,7 +28,7 @@ defmodule Enfiladex.Test.Suite do
   end
 
   setup_all context do
-    on_exit(fn -> IO.puts("ALL TEARDOWN") end)
+    on_exit(fn -> IO.puts("\n============\nALL TEARDOWN\n============\n") end)
 
     Map.update(context, :setup_all, [self()], &[self() | &1])
   end

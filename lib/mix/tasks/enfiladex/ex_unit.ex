@@ -13,6 +13,8 @@ defmodule Mix.Tasks.Enfiladex.ExUnit do
     {params, [], []} = OptionParser.parse(args, strict: [name: :string])
     {name, []} = Keyword.pop(params, :name, "enfiladex")
 
+    Application.unload(:dialyxir)
+
     _pid =
       name
       |> String.to_atom()
