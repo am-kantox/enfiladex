@@ -24,7 +24,13 @@ defmodule Mix.Tasks.Enfiladex do
 
   def run(_args) do
     {_result, 0} = System.cmd("epmd", ["-daemon"], env: [])
-    {:ok, _pid} = Node.start(:enfiladex, :shortnames, 15_000)
+
+    _pid =
+      case Node.start(:enfiladex, :shortnames, 15_000) do
+        {:ok, pid} -> pid
+        {:error, {:already_started, pid}} -> pid
+      end
+
     ExUnit.start(autorun: false, assert_receive_timeout: 1_000)
 
     Application.put_env(:common_test, :auto_compile, false)
