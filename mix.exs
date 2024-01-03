@@ -2,7 +2,7 @@ defmodule Enfiladex.MixProject do
   use Mix.Project
 
   @app :enfiladex
-  @version "0.1.5"
+  @version "0.1.6"
 
   def project do
     [
@@ -66,7 +66,7 @@ defmodule Enfiladex.MixProject do
   defp package do
     [
       name: @app,
-      files: ~w|config lib mix.exs README.md|,
+      files: ~w|config lib src mix.exs README.md|,
       source_ref: "v#{@version}",
       canonical: "http://hexdocs.pm/#{@app}",
       source_url: "https://github.com/am-kantox/#{@app}",
