@@ -6,7 +6,7 @@ defmodule Enfiladex.Suite do
   > When you `use Enfiladex.Suite`, the tests in the case become available to use with `common_test`:
   >
   > - calls to `setup/2` and `setup_all/2` are also injected as `init_per_***/2` and `end_per_***/2`
-  > - `groups/0` and `all/0` are injectd based on your `describe/2` and `test/2` calls 
+  > - `groups/0` and `all/0` are injectd based on your `describe/2` and `test/2` calls
 
   """
 
@@ -134,7 +134,7 @@ defmodule Enfiladex.Suite do
 
       defmacrop on_entry_ast(on_entry) do
         Enum.map(on_entry, fn f ->
-          quote do
+          quote generated: true, location: :keep do
             fn ctx ->
               # credo:disable-for-next-line Credo.Check.Refactor.Nesting
               case unquote(f)(Map.new(ctx)) do
@@ -160,8 +160,8 @@ defmodule Enfiladex.Suite do
       end
 
       {%{on_entry: on_entry, on_exit: on_exit, tests: tests}, groups} =
-        @enfiladex_setup
-        |> Enum.reduce(%{}, fn setup, acc ->
+        [%{group: [], on_exit: [], on_entry: []} | @enfiladex_setup]
+        |> Enum.reduce(%{group: [], on_exit: [], on_entry: []}, fn setup, acc ->
           {groups, setup} =
             case Map.pop!(setup, :group) do
               {[], setup} -> {[nil], setup}
@@ -214,14 +214,14 @@ defmodule Enfiladex.Suite do
 
   @doc false
   defmacro __after_compile__(_env, _bytecode) do
-    quote do
+    quote generated: true, location: :keep do
       :ok
     end
   end
 
   @doc false
   defmacro test(message, var \\ quote(do: _), contents) do
-    quote do
+    quote generated: true, location: :keep do
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
       last_test = ExUnit.Case.get_last_registered_test(__MODULE__)
 
@@ -234,7 +234,7 @@ defmodule Enfiladex.Suite do
 
   @doc false
   defmacro describe(message, do: block) do
-    quote do
+    quote generated: true, location: :keep do
       @enfiladex_group [Enfiladex.Suite.fix_atom_name(unquote(message)) | @enfiladex_group]
       ExUnit.Case.describe(unquote(message), unquote(do: block))
       @enfiladex_group tl(@enfiladex_group)
@@ -270,7 +270,7 @@ defmodule Enfiladex.Suite do
         do: {:block, grab_on_exit(__CALLER__, block)},
         else: {:function, []}
 
-    quote do
+    quote generated: true, location: :keep do
       ExUnit.Callbacks.setup(unquote(block))
 
       funs =
@@ -291,7 +291,7 @@ defmodule Enfiladex.Suite do
   defmacro setup(context, block) do
     on_exit = grab_on_exit(__CALLER__, block)
 
-    quote do
+    quote generated: true, location: :keep do
       ExUnit.Callbacks.setup(unquote(context), unquote(block))
 
       Module.put_attribute(__MODULE__, :enfiladex_setup, %{
@@ -309,7 +309,7 @@ defmodule Enfiladex.Suite do
         do: {:block, grab_on_exit(__CALLER__, block)},
         else: {:function, []}
 
-    quote do
+    quote generated: true, location: :keep do
       ExUnit.Callbacks.setup_all(unquote(block))
 
       funs =
@@ -330,7 +330,7 @@ defmodule Enfiladex.Suite do
   defmacro setup_all(context, block) do
     on_exit = grab_on_exit(__CALLER__, block)
 
-    quote do
+    quote generated: true, location: :keep do
       ExUnit.Callbacks.setup_all(unquote(context), unquote(block))
 
       Module.put_attribute(__MODULE__, :enfiladex_setup_all, %{

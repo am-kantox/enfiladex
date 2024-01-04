@@ -39,8 +39,8 @@ defmodule Enfiladex.Test.Suite do
 
   setup context do
     on_exit(fn ->
-      nil
-      # IO.puts("ON EXIT 2. CTX: #{inspect(ctx)}. Process: #{inspect(self())}")
+      # IO.puts("ON EXIT 2. CTX: #{inspect(context)}. Process: #{inspect(self())}")
+      :ok
     end)
 
     Map.update(context, :setup, [self()], &[self() | &1])
