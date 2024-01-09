@@ -1,7 +1,7 @@
 defmodule Enfiladex do
   @moduledoc """
   `Enfiladex` is the drop-in `Common Test` wrapper for _ExUnit_. It also exposes functions
-  to run some code on a freshly started remote node.
+  to run some code on a freshly started remote node(s).
 
   All one needs to evaluate the code on one or more of connected nodes, would be to
   call a function exported from this module.
@@ -20,6 +20,8 @@ defmodule Enfiladex do
 
   To use functions from this module with `ExUnit` tests, one needs a named node.
   Either run `mix test` in a named environment, or use `mix enfiladex.ex_unit` task.
+
+  Allowed start options besides ones above: https://www.erlang.org/doc/man/peer#type-start_options
   """
 
   @typedoc "The peer handler"

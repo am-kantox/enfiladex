@@ -26,7 +26,6 @@ jobs:
           mix do deps.get, deps.compile, compile
       - name: "ExUnit Test Library"
         run: |
-          mix test
           mix enfiladex.ex_unit
       - name: "Common Test Library"
         run: |
