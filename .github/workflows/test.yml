@@ -23,6 +23,7 @@ jobs:
           elixir-version: ${{matrix.pair.elixir}}
       - name: "Compile Library"
         run: |
+          epmd -daemon
           mix do deps.get, deps.compile, compile
       - name: "ExUnit Test Library"
         run: |
