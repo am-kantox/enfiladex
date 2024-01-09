@@ -1,7 +1,6 @@
 -module(enfiladex).
 
--export([make_peer_name/1, initialize_node/2, anonymous_peer/3, named_peer/4,
-         multi_peer/3]).
+-export([make_peer_name/1, run_in_peers/3, start_peers/1, stop_peers/1]).
 
 -include_lib("common_test/include/ct.hrl").
 
@@ -11,8 +10,12 @@ add_code_paths(Node) ->
 transfer_configuration(Node) ->
     do_transfer_configuration(Node, application:loaded_applications()).
 
-transfer_configuration(Node, App) ->
-    do_transfer_configuration(Node, [{App, nil, nil} | application:loaded_applications()]).
+transfer_configuration(Node, Apps) when is_list(Apps); is_atom(Apps) ->
+    ToEnsure = case Apps of
+                 List when is_list(List) -> [{App, nil, nil} || App <- List];
+                 Atom when is_atom(Atom) -> [{Atom, nil, nil}]
+               end,
+    do_transfer_configuration(Node, ToEnsure ++ application:loaded_applications()).
 
 do_transfer_configuration(Node, Apps) ->
     [rpc:block_call(Node, application, set_env, [AppName, Key, Val])
@@ -21,7 +24,14 @@ do_transfer_configuration(Node, Apps) ->
 ensure_applications_started(Node) ->
     ensure_applications_started(Node, application:loaded_applications()).
 
-ensure_applications_started(Node, Apps) ->
+ensure_applications_started(Node, Apps) when is_list(Apps); is_atom(Apps) ->
+    ToStart = case Apps of
+                 List when is_list(List) -> List;
+                 Atom when is_atom(Atom) -> [Atom]
+               end,
+    do_ensure_applications_started(Node, ToStart).
+
+do_ensure_applications_started(Node, Apps) when is_list(Apps) ->
     rpc:block_call(Node, application, ensure_all_started, [mix]),
     rpc:block_call(Node, 'Elixir.Mix', env, ['Elixir.Mix':env()]),
 
@@ -32,14 +42,14 @@ maybe_transfer_config(Node, Config) ->
     case proplists:get_value(transfer_config, Config, true) of
         false -> ok;
         true -> transfer_configuration(Node);
-        App -> transfer_configuration(Node, App)
+        Apps -> transfer_configuration(Node, Apps)
     end.
 
 maybe_start_applications(Node, Config) ->
     case proplists:get_value(start_applications, Config, true) of
         false -> ok;
         true -> ensure_applications_started(Node);
-        Apps when is_list(Apps) -> ensure_applications_started(Node, Apps)
+        Apps -> ensure_applications_started(Node, Apps)
     end.
 
 apply_fun(Peer, Node, Fun)
@@ -53,11 +63,16 @@ apply_fun(Peer, Node, Fun)
 
 %% specify additional arguments to the new node
 %% `{ok, Peer, Node} = ?CT_PEER(["-emu_flavor", "smp"]).`
-peer_with_args(Config) ->
-    case proplists:get_value(peer_node_arguments, Config, nil) of
-        nil -> ?CT_PEER();
-        [] -> ?CT_PEER();
-        Args -> ?CT_PEER(Args)
+% peer_with_args(Args) ->
+%     case proplists:get_value(peer_node_arguments, Args, []) of
+%         [] -> ?CT_PEER();
+%         Args when is_list(Args) -> ?CT_PEER(Args)
+%     end.
+
+peer_with_config(Config, RawMap) ->
+    case proplists:get_value(peer_node_config, Config, []) of
+        Args when is_list(Args) -> ?CT_PEER(maps:merge(maps:from_list(Args), RawMap));
+        Args when is_map(Args) -> ?CT_PEER(maps:merge(Args, RawMap))
     end.
 
 initialize_node(Node, Config) ->
@@ -75,29 +90,27 @@ get_result(Peer, Node, Fun, Callback) ->
     Result.
 
 %% Interface
-anonymous_peer(Fun, Callback, Config)
+-spec run_in_peers(fun(), fun(), list()) -> list().
+run_in_peers(Fun, Callback, Config)
     when is_function(Fun) orelse is_tuple(Fun), is_function(Callback), is_list(Config) ->
-    {ok, Peer, Node} = peer_with_args(Config),
-    initialize_node(Node, Config),
-    Result = get_result(Peer, Node, Fun, Callback),
-    peer:stop(Peer),
+    {Peers, Nodes} = start_peers(Config),
+    Result = [{Peer, Node, get_result(Peer, Node, Fun, Callback)} || {Peer, Node} <- Nodes],
+    stop_peers(Peers),
     Result.
 
-named_peer(Name, Fun, Callback, Config)
-    when is_function(Fun) orelse is_tuple(Fun), is_function(Callback), is_list(Config) ->
-    Config2 = [{peer_node_arguments, #{name => ?CT_PEER_NAME(Name)}} | Config],
-    anonymous_peer(Fun, Callback, Config2).
-
-multi_peer(Fun, Callback, Config)
-    when is_function(Fun) orelse is_tuple(Fun), is_function(Callback), is_list(Config) ->
+-spec start_peers(list()) -> {list(), list()}.
+start_peers(Config) when is_list(Config) ->
     Count = proplists:get_value(nodes, Config, 3),
-    Peers = [?CT_PEER(#{wait_boot => {self(), enfiladex}}) || _ <- lists:seq(1, Count)],
+    Name = proplists:get_value(name_base, Config, "enfiladex"),
+    Peers = [peer_with_config(Config, #{name => Name ++ [95, integer_to_list(Num)], wait_boot => {self(), enfiladex}}) || Num <- lists:seq(1, Count)],
     %% wait for all nodes to complete boot process, get their names:
     Nodes = [receive {enfiladex, {started, Node, Peer}} -> {Peer, Node} end || {ok, Peer} <- Peers],
     [initialize_node(Node, Config) || {_Peer, Node} <- Nodes],
-    Result = [{Peer, Node, get_result(Peer, Node, Fun, Callback)} || {Peer, Node} <- Nodes],
-    [peer:stop(Peer) || {ok, Peer} <- Peers],
-    Result.
+    {Peers, Nodes}.
+
+-spec stop_peers(list()) -> list().
+stop_peers(Peers) ->
+    [peer:stop(Peer) || {ok, Peer} <- Peers].
 
 make_peer_name(ConfigOrName) ->
     case ConfigOrName of
@@ -141,7 +154,6 @@ make_peer_name(ConfigOrName) ->
 %     ok = peer:call(Peer, inet_db, set_lookup, [[file]]),
 %     ok = peer:call(Peer, inet_db, add_host, [Ip, ["two"]]),
 
-%     %% join a cluster
 %     true = peer:call(Peer, net_kernel, connect_node, [Node2]),
 %     %% verify that second peer node has only the first node visible
 %     [Node] = peer:call(Peer2, erlang, nodes, []),

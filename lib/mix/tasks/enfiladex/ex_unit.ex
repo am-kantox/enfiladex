@@ -1,11 +1,24 @@
 defmodule Mix.Tasks.Enfiladex.ExUnit do
   @moduledoc """
   Mix task to run normal `ExUnit` tests using `Enfiladex` goodness.
+
+  Please set the environment for it in your `mix.exs` file as
+
+  ```elixir
+      def cli do
+      [
+        preferred_envs: [
+          "enfiladex": "test",
+          "enfiladex.ex_unit": "test"
+        ]
+      ]
+    end
+  ```
   """
   @shortdoc "Runs `test` for `ExUnit` tests on a shortnamed node"
 
   @requirements ["compile", "loadpaths", "app.config", "app.start"]
-  @preferred_cli_env :test
+  # @preferred_cli_env :test
 
   use Mix.Task
 
