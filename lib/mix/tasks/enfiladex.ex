@@ -6,6 +6,46 @@ defmodule Mix.Tasks.Enfiladex do
 
   - **`--test-dir`** (_default:_ `["test"]`) — accumulated list of dirs to run `enfiladex` task in
   - **`--ct-logs-dir`** (_default:_ `["ct_logs"]`) — the directory where to pul `ct_logs` outcome to
+
+  Full [list of options](https://www.erlang.org/doc/man/ct#run_test-1):
+
+  * **✓** `{dir, TestDirs}` — as `--test-dir`
+  * **✓** `{suite, Suites}` — as suite per test module with `use Enfiladex.Suite`
+  * **✓** `{group, Groups}` — as gained from `describe` blocks per suite
+  * **✗** `{testcase, Cases}`
+  * **✗** `{spec, TestSpecs}`
+  * **✗** `{join_specs, boolean()}`
+  * **✗** `{label, Label}`
+  * **✗** `{config, CfgFiles}`
+  * **✗** `{userconfig, UserConfig}`
+  * **✗** `{allow_user_terms, boolean()}`
+  * **✓** `{logdir, LogDir}` — as `--log-dir`
+  * **✗** `{silent_connections, Conns}`
+  * **✗** `{stylesheet, CSSFile}`
+  * **✗** `{cover, CoverSpecFile}` — requires `.erl` files, TODO
+  * **✗** `{cover_stop, boolean()}`
+  * **✗** `{step, StepOpts}`
+  * **✗** `{event_handler, EventHandlers}`
+  * **✓** `{include, InclDirs}` — as `--test-dir`
+  * **✓** `{auto_compile, boolean()}` — as `false` because `ct` needs `beam` files
+  * **✓** `{abort_if_missing_suites, boolean()}` — as hardcoded `true`
+  * **✗** `{create_priv_dir, CreatePrivDir}`
+  * **✗** `{multiply_timetraps, M}`
+  * **✗** `{scale_timetraps, boolean()}`
+  * **✗** `{repeat, N}`
+  * **✗** `{duration, DurTime}`
+  * **✗** `{until, StopTime}`
+  * **✗** `{force_stop, ForceStop}`
+  * **✗** `{decrypt, DecryptKeyOrFile}`
+  * **✗** `{refresh_logs, LogDir}`
+  * **✗** `{logopts, LogOpts}`
+  * **✓** `{verbosity, VLevels}` — as hardcoded `100`
+  * **✗** `{basic_html, boolean()}`
+  * **✗** `{esc_chars, boolean()}`
+  * **✗** `{keep_logs, KeepSpec}`
+  * **✓** `{ct_hooks, CTHs}` — as provided by `Enfiladex.Hooks`
+  * **✗** `{enable_builtin_hooks, boolean()}`
+  * **✗** `{release_shell, boolean()}`
   """
   @shortdoc "Runs `common_test` for `ExUnit` tests"
 
@@ -58,16 +98,6 @@ defmodule Mix.Tasks.Enfiladex do
     try do
       # credo:disable-for-next-line Credo.Check.Warning.IoInspect
       IO.inspect(
-        # :ct.run_testspec([
-        #   {:suites, to_charlist(test_dir), modules},
-        #   include: to_charlist(test_dir),
-        #   logdir: ~c"./ct_logs",
-        #   auto_compile: false,
-        #   verbosity: 100,
-        #   abort_if_missing_suites: true,
-        #   ct_hooks: [Enfiladex.Hooks]
-        # ])
-
         Enum.map(modules, fn %{fake: module} ->
           :ct.run_test(
             dir: Enum.map(test_dirs, &to_charlist/1),
@@ -75,8 +105,10 @@ defmodule Mix.Tasks.Enfiladex do
             suite: module,
             logdir: to_charlist(ct_logs_dir),
             auto_compile: false,
-            verbosity: 100,
+            # cover: ~c"cover.spec",
+            # cover_stop: false,
             abort_if_missing_suites: true,
+            verbosity: 100,
             ct_hooks: [Enfiladex.Hooks]
           )
         end)
