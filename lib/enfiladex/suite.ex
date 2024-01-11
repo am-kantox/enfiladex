@@ -135,7 +135,11 @@ defmodule Enfiladex.Suite do
       end
 
       %{group: _, on_entry: on_entry, on_exit: on_exit} =
-        Enum.reduce(@enfiladex_setup_all, %{}, &Map.merge(&1, &2, fn _k, v1, v2 -> v1 ++ v2 end))
+        Enum.reduce(
+          @enfiladex_setup_all,
+          %{group: [], on_exit: [], on_entry: []},
+          &Map.merge(&1, &2, fn _k, v1, v2 -> v1 ++ v2 end)
+        )
 
       def init_per_suite(context) do
         Enum.reduce(on_entry_ast(unquote(on_entry)), context, & &1.(&2))
