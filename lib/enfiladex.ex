@@ -56,7 +56,7 @@ defmodule Enfiladex do
 
   ## Examples
 
-      iex> {_, :enfiladex_1@am, result} = Enfiladex.peer({IO, :inspect, [:ok]})
+      iex> {_, _, result} = Enfiladex.peer({IO, :inspect, [:ok]})
       ...> result
       :ok
   """
