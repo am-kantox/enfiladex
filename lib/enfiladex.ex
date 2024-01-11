@@ -53,6 +53,12 @@ defmodule Enfiladex do
     passed as `config` argument.
 
   It would call `Callback(Result)` if `callback` passed before stopping the peer.
+
+  ## Examples
+
+      iex> {_, :enfiladex_1@am, result} = Enfiladex.peer({IO, :inspect, [:ok]})
+      ...> result
+      :ok
   """
   @spec peer(callee(), callback() | keyword(), keyword()) :: callee_return_value()
   def peer(fun, callback \\ [], config \\ [])

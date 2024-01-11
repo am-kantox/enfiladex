@@ -35,10 +35,11 @@ defmodule Enfiladex.Test.Suite do
 
   setup_all :foo_setup
 
-  @enfiladex_strategy :parallel
+  @enfiladex_strategy [:parallel]
 
   setup context do
     on_exit(fn ->
+      # [TODO] uncomment after 1.17
       # IO.puts("ON EXIT 2. CTX: #{inspect(context)}. Process: #{inspect(self())}")
       :ok
     end)
@@ -64,6 +65,10 @@ defmodule Enfiladex.Test.Suite do
     test "greets the world", _ctx do
       assert 42 != :ok
     end
+  end
+
+  test "simple no strategy" do
+    assert true
   end
 
   test "greets the world", ctx do

@@ -15,7 +15,7 @@ defmodule Enfiladex.Suite do
 
   #{use_enfiladex_suite}
 
-  **`@enfiladex_strategy`** attribute can be set before each `describe/2` call to one of the following values:
+  **`@enfiladex_group_strategy`** attribute can be set before each `describe/2` call to one of the following values:
 
   - **`[]`** (empty list / no option)
     - The test cases in the group are run one after the other. If a test fails, the others after it in the list are run.
@@ -39,9 +39,7 @@ defmodule Enfiladex.Suite do
   [Common Test for Uncommon Tests](https://learnyousomeerlang.com/common-test-for-uncommon-tests)
   """
 
-  @default_enfiladex_strategy :enfiladex
-                              |> Application.compile_env(:default_group_strategy)
-                              |> List.wrap()
+  @default_enfiladex_strategy Application.compile_env(:enfiladex, :default_group_strategy)
 
   @normalize_group_names Application.compile_env(:enfiladex, :normalize_group_names, false)
 
@@ -51,26 +49,27 @@ defmodule Enfiladex.Suite do
       @before_compile Enfiladex.Suite
       @after_compile Enfiladex.Suite
 
-      Module.register_attribute(__MODULE__, :enfiladex_strategy, accumulate: false, persist: true)
       Module.register_attribute(__MODULE__, :enfiladex_group, accumulate: false, persist: true)
       Module.put_attribute(__MODULE__, :enfiladex_group, [])
-      Module.register_attribute(__MODULE__, :enfiladex_tests, accumulate: true, persist: true)
+      Module.register_attribute(__MODULE__, :enfiladex_groups, accumulate: true, persist: true)
       Module.register_attribute(__MODULE__, :enfiladex_setup, accumulate: true, persist: true)
       Module.register_attribute(__MODULE__, :enfiladex_setup_all, accumulate: true, persist: true)
 
-      import ExUnit.Case, only: [test: 1]
+      import ExUnit.Case, only: [test: 1, test: 2, test: 3]
       require ExUnit.Case
 
       import ExUnit.Callbacks,
         except: [setup: 1, setup: 2, setup_all: 1, setup_all: 2, on_exit: 1, on_exit: 2]
+
+      import ExUnit.DocTest, except: [doctest: 1, doctest: 2]
 
       require ExUnit.Callbacks
 
       import Enfiladex.Suite,
         only: [
           describe: 2,
-          test: 2,
-          test: 3,
+          doctest: 1,
+          doctest: 2,
           setup: 1,
           setup: 2,
           setup_all: 1,
@@ -87,50 +86,38 @@ defmodule Enfiladex.Suite do
     quote bind_quoted: [enfiladex_strategy: @default_enfiladex_strategy],
           generated: true,
           location: :keep do
-      @tests @enfiladex_tests
+      @tests __MODULE__
+             |> Module.get_attribute(:ex_unit_tests)
              |> Enum.reduce(%{}, fn %ExUnit.Test{
                                       name: test,
-                                      tags: %{
-                                        describe: group,
-                                        enfiladex_strategy: strategy
-                                      }
+                                      tags: %{describe: group}
                                     },
                                     acc ->
                group = Enfiladex.Suite.fix_atom_name(group)
 
                acc
-               |> Map.put_new(group, %{tests: [], strategies: []})
+               |> Map.put_new(group, %{tests: []})
                |> update_in([group, :tests], &(List.wrap(&1) ++ [test]))
-               |> update_in([group, :strategies], &Enum.uniq(List.wrap(strategy) ++ &1))
              end)
 
-      @enfiladex_groups Enum.flat_map(@tests, fn
-                          {nil, %{tests: tests, strategies: strategies}} ->
-                            []
+      enfiladex_groups = @enfiladex_groups |> List.flatten() |> Map.new()
 
-                          {group, %{tests: tests, strategies: []}} ->
-                            [{group, enfiladex_strategy, tests}]
+      @enfiladex_suite_groups Enum.flat_map(@tests, fn
+                                {nil, %{tests: tests}} ->
+                                  []
 
-                          {group, %{tests: tests, strategies: [strategy]}} ->
-                            [{group, [strategy], tests}]
+                                {group, %{tests: tests}} ->
+                                  [{group, Map.fetch!(enfiladex_groups, group), tests}]
+                              end)
 
-                          {group, %{tests: tests, strategies: strategies}} ->
-                            [{group, strategies, tests}]
+      def groups, do: @enfiladex_suite_groups
 
-                            # [AM] do we need to raise here?!
-                            raise Enfiladex.ModuleAttributeError,
-                                  "`@enfiladex_strategy` attribute must be the same for all tests " <>
-                                    "in `group`/`describe`"
-                        end)
+      @enfiladex_suite_all Enum.flat_map(@tests, fn
+                             {nil, %{tests: tests}} -> tests
+                             {group, _} -> [{:group, group}]
+                           end)
 
-      def groups, do: @enfiladex_groups
-
-      @enfiladex_all Enum.flat_map(@tests, fn
-                       {nil, %{tests: tests}} -> tests
-                       {group, _} -> [{:group, group}]
-                     end)
-
-      def all, do: @enfiladex_all
+      def all, do: @enfiladex_suite_all
 
       defmacrop on_entry_ast(on_entry) do
         Enum.map(on_entry, fn f ->
@@ -220,34 +207,19 @@ defmodule Enfiladex.Suite do
   end
 
   @doc false
-  defmacro test(message, var \\ quote(do: _), contents) do
-    quote generated: true, location: :keep do
-      ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
-      last_test = ExUnit.Case.get_last_registered_test(__MODULE__)
-
-      @enfiladex_tests %ExUnit.Test{
-        last_test
-        | tags: Map.put(last_test.tags, :enfiladex_strategy, @enfiladex_strategy)
-      }
-    end
-  end
-
-  @doc false
   defmacro describe(message, do: block) do
     quote generated: true, location: :keep do
-      @enfiladex_group [Enfiladex.Suite.fix_atom_name(unquote(message)) | @enfiladex_group]
-      ExUnit.Case.describe(unquote(message), unquote(do: block))
-      @enfiladex_group tl(@enfiladex_group)
+      enfiladex_strategy =
+        with nil <- Module.get_attribute(__MODULE__, :enfiladex_strategy),
+             do: unquote(@default_enfiladex_strategy)
 
-      Module.put_attribute(
-        __MODULE__,
-        :enfiladex_strategy,
-        Module.get_attribute(
-          __MODULE__,
-          :enfiladex_default_strategy,
-          unquote(@default_enfiladex_strategy)
-        )
-      )
+      @enfiladex_group [
+        {Enfiladex.Suite.fix_atom_name(unquote(message)), enfiladex_strategy} | @enfiladex_group
+      ]
+
+      ExUnit.Case.describe(unquote(message), unquote(do: block))
+      @enfiladex_groups @enfiladex_group
+      @enfiladex_group tl(@enfiladex_group)
     end
   end
 
@@ -261,6 +233,36 @@ defmodule Enfiladex.Suite do
 
       :ok
     end
+  end
+
+  defmacro doctest(module, opts \\ []) do
+    caller = __CALLER__
+
+    require =
+      if is_atom(Macro.expand(module, caller)) do
+        quote do
+          require unquote(module)
+        end
+      end
+
+    tests =
+      quote bind_quoted: [
+              module: module,
+              opts: opts,
+              env_line: caller.line,
+              env_file: caller.file
+            ] do
+        file = ExUnit.DocTest.__file__(module)
+
+        for {name, test, tags} <- ExUnit.DocTest.__doctests__(module, opts) do
+          @file file
+          name = String.replace(name, <<?/>>, "∕")
+          doc = ExUnit.Case.register_test(__MODULE__, env_file, env_line, :doctest, name, tags)
+          def unquote(doc)(_), do: unquote(test)
+        end
+      end
+
+    [require, tests]
   end
 
   @doc false
@@ -380,6 +382,7 @@ defmodule Enfiladex.Suite do
   end
 
   @doc false
+  def fix_atom_name({group, strategy}), do: {fix_atom_name(group), strategy}
   def fix_atom_name(group) when is_atom(group), do: group
 
   if @normalize_group_names do
