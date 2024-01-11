@@ -27,4 +27,5 @@ Add `use Enfiladex` to your test to convert it to common test suite.
 
 ## Changelog
 
+- **`0.2.1`** — doctests
 - **`0.2.0`** — `start_peers/1`, `stop_peers/1`, self-tested, cleaner interface

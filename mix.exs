@@ -2,7 +2,7 @@ defmodule Enfiladex.MixProject do
   use Mix.Project
 
   @app :enfiladex
-  @version "0.2.0"
+  @version "0.2.1"
 
   def project do
     [
