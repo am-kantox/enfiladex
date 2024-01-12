@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Enfiladex.ExUnit do
   Please set the environment for it in your `mix.exs` file as
 
   ```elixir
-      def cli do
+    def cli do
       [
         preferred_envs: [
           "enfiladex": "test",
@@ -13,6 +13,11 @@ defmodule Mix.Tasks.Enfiladex.ExUnit do
         ]
       ]
     end
+
+    # or inside `project` callback
+
+    preferred_cli_env: ["enfiladex": :test, "enfiladex.ex_unit": :test],
+
   ```
   """
   @shortdoc "Runs `test` for `ExUnit` tests on a shortnamed node"
