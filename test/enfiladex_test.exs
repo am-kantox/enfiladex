@@ -27,6 +27,28 @@ defmodule Enfiladex.Test.Suite do
     end
   end
 
+  test "call everywhere", ctx do
+    count = 3
+    peers = Enfiladex.start_peers(count)
+
+    try do
+      Enfiladex.call_everywhere(Enfiladex, :test, [self(), ctx])
+
+      for _ <- 1..count do
+        assert_receive {node, pid, _ctx}
+        assert is_pid(pid)
+
+        assert [node, Node.self()]
+               |> Enum.map(&to_string/1)
+               |> Enum.map(&String.split(&1, "@"))
+               |> Enum.map(&List.last/1)
+               |> Enum.reduce(&Kernel.==/2)
+      end
+    after
+      Enfiladex.stop_peers(peers)
+    end
+  end
+
   setup_all context do
     on_exit(fn -> IO.puts("\n============\nALL TEARDOWN\n============\n") end)
 

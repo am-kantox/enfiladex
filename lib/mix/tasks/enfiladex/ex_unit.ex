@@ -28,25 +28,29 @@ defmodule Mix.Tasks.Enfiladex.ExUnit do
   use Mix.Task
 
   def run(args) do
-    {params, [], []} = OptionParser.parse(args, strict: [name: :string])
-    {name, []} = Keyword.pop(params, :name, "enfiladex")
+    {params, rest, []} = OptionParser.parse(args, strict: [name: :string, distribution: :string])
+    {name, params} = Keyword.pop(params, :name, "enfiladex")
+    {distribution, []} = Keyword.pop(params, :distribution, "epmd -daemon")
 
     Application.unload(:dialyxir)
 
-    _pid =
+    [cmd | args] = String.split(distribution)
+    {_, 0} = System.cmd(cmd, args)
+
+    {stop?, _pid} =
       name
       |> String.to_atom()
       |> Node.start(:shortnames, 15_000)
       |> case do
-        {:ok, pid} -> pid
-        {:error, {:already_started, pid}} -> pid
+        {:ok, pid} -> {true, pid}
+        {:error, {:already_started, pid}} -> {false, pid}
       end
 
     try do
       System.put_env("MIX_ENV", "test")
-      Mix.Task.run(:test)
+      Mix.Task.run(:test, rest)
     after
-      Node.stop()
+      if stop?, do: Node.stop()
     end
   end
 end

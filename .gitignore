@@ -34,3 +34,7 @@ enfiladex-*.tar
 
 # ct_logs
 /ct_logs/
+
+/.tool-versions
+/cover.spec
+/dist.spec
