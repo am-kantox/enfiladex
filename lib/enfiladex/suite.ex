@@ -356,19 +356,27 @@ defmodule Enfiladex.Suite do
       end)
 
     {result, all_errors_and_warnings} =
-      Code.with_diagnostics(fn ->
+      if Version.compare(System.version(), "1.16.0") == :lt do
         try do
-          {:ok, Code.compile_quoted({:fn, [], [{:->, [], [[], on_exit]}]}, caller.file)}
+          {{:ok, Code.compile_quoted({:fn, [], [{:->, [], [[], on_exit]}]}, caller.file)}, []}
         rescue
           err -> {:error, err}
         end
-      end)
+      else
+        Code.with_diagnostics(fn ->
+          try do
+            {:ok, Code.compile_quoted({:fn, [], [{:->, [], [[], on_exit]}]}, caller.file)}
+          rescue
+            err -> {:error, err}
+          end
+        end)
+      end
 
     case result do
       {:ok, _ast} ->
         on_exit
 
-      _ ->
+      result ->
         # with {:ok, pid} <- Module.ParallelChecker.start_link(),
         #      do: :erlang.put(:elixir_checker_info, {pid, nil})
 
@@ -379,7 +387,11 @@ defmodule Enfiladex.Suite do
             "no teardown callback would have been defined."
         )
 
-        Enum.each(all_errors_and_warnings, &Code.print_diagnostic/1)
+        if Version.compare(System.version(), "1.16.0") == :lt do
+          IO.puts(inspect(result))
+        else
+          Enum.each(all_errors_and_warnings, &Code.print_diagnostic/1)
+        end
 
         [quote(do: fn -> :ok end)]
     end

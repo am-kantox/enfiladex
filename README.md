@@ -27,5 +27,6 @@ Add `use Enfiladex` to your test to convert it to common test suite.
 
 ## Changelog
 
+- **`0.3.0`** — `Enfiladex.rpc_[block_]call/2`, `Enfiladex.[block_]call_everywhere/3`
 - **`0.2.1`** — doctests
 - **`0.2.0`** — `start_peers/1`, `stop_peers/1`, self-tested, cleaner interface
