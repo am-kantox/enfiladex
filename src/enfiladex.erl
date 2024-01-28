@@ -36,7 +36,7 @@ do_ensure_applications_started(Node, Apps) when is_list(Apps) ->
     rpc:block_call(Node, 'Elixir.Mix', env, ['Elixir.Mix':env()]),
 
     [rpc:block_call(Node, application, ensure_all_started, [AppName])
-     || {AppName, _, _} <- Apps].
+     || {AppName, _, _} <- Apps, AppName /= mox, AppName /= dialyxir].
 
 maybe_transfer_config(Node, Config) ->
     case proplists:get_value(transfer_config, Config, true) of

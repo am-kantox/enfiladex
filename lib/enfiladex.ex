@@ -67,8 +67,7 @@ defmodule Enfiladex do
   def peer(fun, callback \\ [], config \\ [])
       when (is_tuple(fun) or is_function(fun)) and (is_function(callback) or is_list(callback)) do
     {callback, config} = fix_callback_config(callback, config)
-    [result] = :enfiladex.run_in_peers(fun, callback, Keyword.put(config, :nodes, 1))
-    result
+    fun |> :enfiladex.run_in_peers(callback, Keyword.put(config, :nodes, 1)) |> List.first()
   end
 
   @doc """
