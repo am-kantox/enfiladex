@@ -1,6 +1,6 @@
 # Enfiladex
 
-**Wrapper for executing `ExUnit` as `common_test` **
+**Wrapper for executing `ExUnit` as `common_test`**
 
 ## Installation
 
