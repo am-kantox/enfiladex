@@ -12,7 +12,11 @@ defmodule Enfiladex.MixProject do
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       prune_code_paths: Mix.env() == :prod,
-      preferred_cli_env: [{:"enfiladex.suite", :test}],
+      preferred_cli_env: [
+        {:enfiladex, :test},
+        {:"enfiladex.ex_unit", :test},
+        {:"enfiladex.suite", :test}
+      ],
       description: description(),
       package: package(),
       aliases: aliases(),
@@ -40,6 +44,7 @@ defmodule Enfiladex.MixProject do
 
   defp deps do
     [
+      {:cth_readable, "~> 1.6", only: [:dev, :ci, :test]},
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},
       {:credo, "~> 1.0", only: [:dev, :ci]},
       {:ex_doc, "~> 0.11", only: [:dev, :docs]}

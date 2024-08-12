@@ -18,6 +18,15 @@ defmodule Enfiladex do
 
   ---
 
+  Due to sophisticated way of how _Elixir_ compiler loads paths, _Erlang_’s `common_test`
+  is not available by default, which might result in compilation errors. Add this
+  to `project` section in your `mix.exs` to make it work:
+
+  ```elixir
+  prune_code_paths: Mix.env() == :prod
+  ```
+  ---
+
   To use functions from this module with `ExUnit` tests, one needs a named node.
     Either run `mix test` in a named environment, or use `mix enfiladex.ex_unit` task.
     Make sure `epmd` (of any service providing distribution) is started in the target environment.
