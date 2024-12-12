@@ -32,13 +32,7 @@ defmodule Enfiladex.MixProject do
 
   def application do
     [
-      extra_applications: [
-        :logger
-        # :observer,
-        # :wx,
-        # :runtime_tools,
-        # :common_test
-      ]
+      extra_applications: [:logger, :common_test]
     ]
   end
 
